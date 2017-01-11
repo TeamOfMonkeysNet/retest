@@ -82,11 +82,13 @@
 
 #define TEST_ERR(err)							\
 	if ((err)) {							\
-		(void)re_fprintf(stderr, "\n");				\
-		DEBUG_WARNING("TEST_ERR: %s:%u:"			\
-			      " (%m)\n",				\
-			      __FILE__, __LINE__,			\
-			      (err));					\
+		if ((err) != ENOMEM) {					\
+			(void)re_fprintf(stderr, "\n");			\
+			DEBUG_WARNING("TEST_ERR: %s:%u:"		\
+				      " (%m)\n",			\
+				      __FILE__, __LINE__,		\
+				      (err));				\
+		}							\
 		goto out;						\
 	}
 
@@ -160,6 +162,7 @@ int test_mqueue(void);
 int test_natbd(void);
 int test_odict(void);
 int test_odict_array(void);
+int test_pcp(void);
 int test_remain(void);
 int test_rtp(void);
 int test_rtcp_encode(void);
@@ -202,6 +205,10 @@ int test_sys_rand(void);
 int test_tcp(void);
 int test_telev(void);
 int test_tmr(void);
+int test_trice_cand(void);
+int test_trice_candpair(void);
+int test_trice_checklist(void);
+int test_trice_tmp(void);
 int test_turn(void);
 int test_turn_tcp(void);
 int test_udp(void);
@@ -320,6 +327,46 @@ struct turnserver {
 int turnserver_alloc(struct turnserver **turnp);
 
 
+/*
+ * ICE Peer
+ */
+
+struct ice_lcand;
+
+struct fake_remote {
+	struct trice *icem;
+	bool controlling;
+	char *lufrag;
+	char *lpwd;
+	char *rufrag;
+	char *rpwd;
+
+	struct udp_sock *us;
+	struct sa addr;
+};
+
+int fake_remote_alloc(struct fake_remote **fakep, struct trice *icem,
+		      bool controlling,
+		      const char *lufrag, const char *lpwd,
+		      const char *rufrag, const char *rpwd);
+int fake_remote_send_connectivity_check(struct fake_remote *fake,
+					struct ice_lcand *lcand,
+					const char *target_pwd,
+					bool use_cand);
+int fake_remote_reply(struct fake_remote *fake, struct ice_lcand *lcand,
+		      const struct stun_msg *req,
+		      uint32_t attrc, ...);
+int fake_remote_ereply(struct fake_remote *fake, struct ice_lcand *lcand,
+		       const struct stun_msg *req,
+		       uint16_t scode, const char *reason,
+		       uint32_t attrc, ...);
+
+
+enum natbox_type {
+	NAT_INBOUND_SNAT,  /* NOTE: must be installed on receiving socket */
+	NAT_FIREWALL,
+};
+
 /**
  * A simple NAT-box that can be hooked onto a UDP-socket.
  *
@@ -327,15 +374,18 @@ int turnserver_alloc(struct turnserver **turnp);
  * IP-address to the public address.
  */
 struct nat {
+	enum natbox_type type;
 	struct sa public_addr;
 	struct udp_helper *uh;
 	struct udp_sock *us;
+	struct sa laddr;
 	struct sa bindingv[16];
 	size_t bindingc;
+	unsigned n_drop;
 };
 
-int nat_alloc(struct nat **natp, struct udp_sock *us,
-	      const struct sa *public_addr);
+int nat_alloc(struct nat **natp, enum natbox_type type,
+	      struct udp_sock *us, const struct sa *public_addr);
 
 
 /*
@@ -354,6 +404,23 @@ struct tcp_server {
 };
 
 int tcp_server_alloc(struct tcp_server **srvp, enum behavior behavior);
+
+
+/*
+ * PCP Server
+ */
+
+struct pcpserver {
+	struct udp_sock *us;
+	struct sa addr;
+
+	/* Server behaviour */
+	int result;
+
+	uint32_t n_req;
+};
+
+int pcpserver_alloc(struct pcpserver **srvp, int result);
 
 
 /*

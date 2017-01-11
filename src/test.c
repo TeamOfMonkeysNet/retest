@@ -97,6 +97,7 @@ static const struct test tests[] = {
 	TEST(test_natbd),
 	TEST(test_odict),
 	TEST(test_odict_array),
+	TEST(test_pcp),
 	TEST(test_remain),
 	TEST(test_rtp),
 	TEST(test_rtcp_encode),
@@ -144,6 +145,10 @@ static const struct test tests[] = {
 	TEST(test_tls_certificate),
 #endif
 	TEST(test_tmr),
+	TEST(test_trice_cand),
+	TEST(test_trice_candpair),
+	TEST(test_trice_checklist),
+	TEST(test_trice_tmp),
 	TEST(test_turn),
 	TEST(test_turn_tcp),
 	TEST(test_udp),

@@ -31,6 +31,8 @@ endif
 BINDIR	:= $(PREFIX)/bin
 CFLAGS	+= -Isrc -I$(LIBRE_INC)
 CFLAGS  += -I$(LIBREM_PATH)/include -I$(SYSROOT)/local/include/rem
+CFLAGS  += -I$(SYSROOT)/local/include/rew
+
 CXXFLAGS	+= -Isrc -I$(LIBRE_INC)
 CXXFLAGS  += -I$(LIBREM_PATH)/include -I$(SYSROOT)/local/include/rem
 
@@ -51,7 +53,7 @@ ifneq ($(LIBREM_PATH),)
 LIBS	+= -L$(LIBREM_PATH)
 endif
 
-LIBS	+= -lrem -lm
+LIBS	+= -lrew -lrem -lm
 
 
 include src/srcs.mk

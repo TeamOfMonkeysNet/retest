@@ -349,13 +349,19 @@ static int fixture_init(struct fixture *f)
 
 static int fixture_add_second(struct fixture *f)
 {
+	const struct trice_conf conf = {
+		.debug        = DEBUG,
+		.trace        = TRACE,
+		.ansi         = true,
+		.enable_prflx = true
+	};
 	struct endpoint *ep = &f->epv[1];
 	int err;
 
 	TEST_ASSERT(f != NULL);
 	TEST_ASSERT(ep->icem == NULL);
 
-	err = trice_alloc(&ep->icem, NULL, !f->controlling,
+	err = trice_alloc(&ep->icem, &conf, !f->controlling,
 			  f->rufrag, f->rpwd);
 	if (err)
 		goto out;
@@ -1254,8 +1260,7 @@ static int checklist_tcp_simple(enum ice_tcptype tcptype)
 	ep  = &f->epv[0];
 	ep2 = &f->epv[1];
 
-	err = trice_alloc(&ep2->icem, NULL, !f->controlling,
-			  f->rufrag, f->rpwd);
+	err = fixture_add_second(f);
 	TEST_ERR(err);
 
 	err |= trice_set_remote_ufrag(ep2->icem, f->lufrag);
@@ -1282,7 +1287,8 @@ static int checklist_tcp_simple(enum ice_tcptype tcptype)
 	TEST_ERR(f->err);
 
 #if 0
-	re_printf("\n\n%H\n", trice_debug, ep->icem);
+	re_printf("\nENDPOINT A:\n%H\n", trice_debug, ep->icem);
+	re_printf("\nENDPOINT B:\n%H\n", trice_debug, ep2->icem);
 #endif
 
 	TEST_ASSERT(ep->n_estabh > 0);

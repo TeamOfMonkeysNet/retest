@@ -137,8 +137,7 @@ static const uint8_t peer_request[] = {
 	0x40, 0x0f, 0x08, 0x03,  /* |internal IP address          */
 	0x00, 0x00, 0x00, 0x00,  /* |                             */
 	0x00, 0x00, 0x40, 0x00,  /* '                             */
-
-	};
+};
 
 
 static int test_pcp_message(void)
@@ -212,87 +211,6 @@ static int test_pcp_message(void)
 }
 
 
-#if 0
-static int test_pcp_response(void)
-{
-	static const struct {
-		enum pcp_opcode opcode;
-		uint32_t lifetime;
-		enum pcp_result result;
-		uint32_t epoch_time;
-		const uint8_t packet[24];
-	} testv[] = {
-		{PCP_ANNOUNCE, 0, PCP_SUCCESS, 1,
-		 {
-			 0x02, 0x80, 0x00, 0x00,  /*  ver | opcode | res */
-			 0x00, 0x00, 0x00, 0x00,  /*  lifetime           */
-			 0x00, 0x00, 0x00, 0x01,  /*  epoch time         */
-			 0x00, 0x00, 0x00, 0x00,  /*  \                  */
-			 0x00, 0x00, 0x00, 0x00,  /*  | rsvd             */
-			 0x00, 0x00, 0x00, 0x00,  /*  /                  */
-			 }
-		},
-
-		{PCP_MAP, 64, PCP_UNSUPP_FAMILY, 0x1234,
-		 {
-			 0x02, 0x81, 0x00, 0x0e,  /*  ver | opcode | res */
-			 0x00, 0x00, 0x00, 0x40,  /*  lifetime           */
-			 0x00, 0x00, 0x12, 0x34,  /*  epoch time         */
-			 0x00, 0x00, 0x00, 0x00,  /*  \                  */
-			 0x00, 0x00, 0x00, 0x00,  /*  | rsvd             */
-			 0x00, 0x00, 0x00, 0x00,  /*  /                  */
-			 }
-		},
-
-		{PCP_PEER, 0x01020304, PCP_SUCCESS, 1,
-		 {
-			 0x02, 0x82, 0x00, 0x00,  /*  ver | opcode | res */
-			 0x01, 0x02, 0x03, 0x04,  /*  lifetime           */
-			 0x00, 0x00, 0x00, 0x01,  /*  epoch time         */
-			 0x00, 0x00, 0x00, 0x00,  /*  \                  */
-			 0x00, 0x00, 0x00, 0x00,  /*  | rsvd             */
-			 0x00, 0x00, 0x00, 0x00,  /*  /                  */
-			 }
-		},
-	};
-	struct pcp_peer peer;
-	struct mbuf *mb;
-	size_t i;
-	int err;
-
-	memset(&peer, 0, sizeof(peer));
-	sa_init(&peer.map.ext_addr, AF_INET);
-	sa_init(&peer.remote_addr, AF_INET);
-
-	mb = mbuf_alloc(512);
-	if (!mb)
-		return ENOMEM;
-
-	for (i=0; i<ARRAY_SIZE(testv); i++) {
-
-		mbuf_rewind(mb);
-
-		err = pcp_msg_resp_encode(mb,
-					  testv[i].opcode,
-					  testv[i].result,
-					  testv[i].lifetime,
-					  testv[i].epoch_time,
-					  &peer);
-		if (err)
-			break;
-
-		/* just compare header, ignore payload for now */
-		TEST_MEMCMP(testv[i].packet, sizeof(testv[i].packet),
-			    mb->buf, 24);
-	}
-
- out:
-	mem_deref(mb);
-	return err;
-}
-#endif
-
-
 static int test_pcp_bad(void)
 {
 	struct pcp_msg *msg = NULL;
@@ -338,7 +256,7 @@ static void pcp_resp_handler(int err, struct pcp_msg *msg, void *arg)
 	TEST_EQUALS(true, msg->hdr.resp);
 	TEST_EQUALS(PCP_MAP, msg->hdr.opcode);
 
-	t->msg = mem_ref((void *)msg);
+	t->msg = mem_ref(msg);
 	t->respc++;
 
  out:
@@ -434,6 +352,8 @@ static int test_pcp_option(void)
 
 	mb->pos = 0;
 	err = pcp_option_decode(&opt, mb);
+	if (err)
+		goto out;
 
 	TEST_EQUALS(PCP_OPTION_THIRD_PARTY, opt->code);
 	TEST_SACMP(&addr, &opt->u.third_party, SA_ADDR);
@@ -457,12 +377,6 @@ int test_pcp(void)
 	err = test_pcp_message();
 	if (err)
 		return err;
-
-#if 0
-	err = test_pcp_response();
-	if (err)
-		return err;
-#endif
 
 	err = test_pcp_option();
 	if (err)

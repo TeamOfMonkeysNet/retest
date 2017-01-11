@@ -25,6 +25,9 @@ struct endpoint {
 	struct fixture *fix;    /* pointer to parent */
 	struct trice *icem;
 
+	/* optional NAT */
+	struct nat *nat;
+
 	/* counters: */
 	unsigned n_estabh;
 	unsigned n_failh;
@@ -66,10 +69,6 @@ struct fixture {
 	struct turnc *turnc;
 	struct turnserver *turnsrv;
 	struct udp_sock *us_turn;
-
-	/* NAT */
-	struct nat *nat;
-	struct nat *nat2;
 };
 
 
@@ -373,14 +372,12 @@ static void fixture_close(struct fixture *f)
 	if (!f)
 		return;
 
-	f->nat = mem_deref(f->nat);
-	f->nat2 = mem_deref(f->nat2);
-
 	f->remote = mem_deref(f->remote);
 	for (i=0; i<ARRAY_SIZE(f->epv); i++) {
 		struct endpoint *ep = &f->epv[i];
 
 		ep->icem = mem_deref(ep->icem);
+		ep->nat  = mem_deref(ep->nat);
 	}
 
 	f->turnsrv = mem_deref(f->turnsrv);
@@ -1667,7 +1664,7 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 
 	/* install NAT/Firewall */
 	if (fw_a) {
-		err = nat_alloc(&f->nat, NAT_FIREWALL, lcand->us, NULL);
+		err = nat_alloc(&ep->nat, NAT_FIREWALL, lcand->us, NULL);
 		if (err) {
 			goto out;
 		}
@@ -1682,9 +1679,8 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 
 	/* install NAT/Firewall */
 	if (fw_b) {
-		err = nat_alloc(&f->nat2, NAT_FIREWALL, lcand2->us, NULL);
+		err = nat_alloc(&ep2->nat, NAT_FIREWALL, lcand2->us, NULL);
 		if (err) {
-			re_printf("nat failed\n");
 			goto out;
 		}
 	}
@@ -1726,10 +1722,10 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 	TEST_EQUALS(1, list_count(trice_validl(ep2->icem)));
 
 	if (fw_a) {
-		TEST_ASSERT(f->nat->bindingc >= 1);
+		TEST_ASSERT(ep->nat->bindingc >= 1);
 	}
 	if (fw_b) {
-		TEST_ASSERT(f->nat2->bindingc >= 1);
+		TEST_ASSERT(ep2->nat->bindingc >= 1);
 	}
 
  out:

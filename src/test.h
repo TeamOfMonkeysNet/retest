@@ -208,6 +208,7 @@ int test_tmr(void);
 int test_trice_cand(void);
 int test_trice_candpair(void);
 int test_trice_checklist(void);
+int test_trice_checklist_tcp(void);
 int test_trice_tmp(void);
 int test_turn(void);
 int test_turn_tcp(void);

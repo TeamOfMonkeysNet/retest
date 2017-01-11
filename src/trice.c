@@ -24,6 +24,7 @@
 struct endpoint {
 	struct fixture *fix;    /* pointer to parent */
 	struct trice *icem;
+	bool controlling;
 
 	/* optional NAT */
 	struct nat *nat;
@@ -40,7 +41,6 @@ struct fixture {
 	struct endpoint epv[2];
 
 	struct sa laddr;
-	bool controlling;
 	char lufrag[8];
 	char lpwd[24];
 	char rufrag[8];
@@ -314,14 +314,15 @@ static int fixture_init(struct fixture *f)
 		f->epv[i].fix = f;
 	}
 
-	f->controlling = true;
+	f->epv[0].controlling = true;
+	f->epv[1].controlling = false;
 
 	rand_str(f->lufrag, sizeof(f->lufrag));
 	rand_str(f->lpwd, sizeof(f->lpwd));
 	rand_str(f->rufrag, sizeof(f->rufrag));
 	rand_str(f->rpwd, sizeof(f->rpwd));
 
-	err = trice_alloc(&f->epv[0].icem, &conf, f->controlling,
+	err = trice_alloc(&f->epv[0].icem, &conf, f->epv[0].controlling,
 			  f->lufrag, f->lpwd);
 	if (err)
 		goto out;
@@ -333,7 +334,8 @@ static int fixture_init(struct fixture *f)
 		goto out;
 
 	/* create a fake ICE endpoint (with l/r ufrag/pwd swapped) */
-	err = fake_remote_alloc(&f->remote, f->epv[0].icem, !f->controlling,
+	err = fake_remote_alloc(&f->remote, f->epv[0].icem,
+				!f->epv[0].controlling,
 				f->rufrag, f->rpwd,
 				f->lufrag, f->lpwd);
 	if (err)
@@ -361,7 +363,7 @@ static int fixture_add_second_ep(struct fixture *f)
 	TEST_ASSERT(f != NULL);
 	TEST_ASSERT(ep->icem == NULL);
 
-	err = trice_alloc(&ep->icem, &conf, !f->controlling,
+	err = trice_alloc(&ep->icem, &conf, ep->controlling,
 			  f->rufrag, f->rpwd);
 	if (err)
 		goto out;
@@ -1000,7 +1002,7 @@ static int candidate_send_handler(struct endpoint *ep,
 
 	if (is_req) {
 
-		if (f->controlling) {
+		if (ep->controlling) {
 			attr = stun_msg_attr(msg, STUN_ATTR_CONTROLLED);
 			TEST_ASSERT(NULL == attr);
 			attr = stun_msg_attr(msg, STUN_ATTR_CONTROLLING);

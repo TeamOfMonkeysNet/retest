@@ -7,7 +7,7 @@ before_install:
 install:
     - git clone https://github.com/creytiv/re.git
     - git clone https://github.com/creytiv/rem.git
-    - git clone https://github.com/creytiv/rew.git
+    - git clone https://github.com/alfredh/rew.git
     - cd re && make && sudo make install && cd ..
     - cd rem && make && sudo make install && cd ..
     - cd rew && make && sudo make install && cd ..

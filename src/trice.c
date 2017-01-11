@@ -125,7 +125,7 @@ static int fixture_intercept_outgoing(struct fixture *f,
 
 
 /* todo: 'addr' used as 'base_addr' (hack) */
-#define ADD_LOCAL_SRFLX_CANDIDATE(ep, proto, prio, addr)		\
+#define ep_add_local_srflx_candidate(ep, proto, prio, addr)		\
 									\
 	do {								\
 		struct ice_lcand *_lcand;				\
@@ -140,7 +140,7 @@ static int fixture_intercept_outgoing(struct fixture *f,
 									\
 	} while (0);
 
-#define add_local_udp_candidate_use(ep, addr)	   \
+#define ep_add_local_udp_candidate_use(ep, addr)	   \
 						   \
 	do {								\
 		struct ice_lcand *_lcand;				\
@@ -158,7 +158,7 @@ static int fixture_intercept_outgoing(struct fixture *f,
 									\
 	} while (0);
 
-#define add_local_tcp_candidate_use(ep, addr, tcptype)	\
+#define ep_add_local_tcp_candidate_use(ep, addr, tcptype)	\
 						   \
 	do {								\
 		struct ice_lcand *_lcand;				\
@@ -177,7 +177,7 @@ static int fixture_intercept_outgoing(struct fixture *f,
 	} while (0);
 
 
-#define ADD_REMOTE_HOST_CANDIDATE(ep, addr)				\
+#define ep_add_remote_host_candidate(ep, addr)				\
 									\
 	do {								\
 		uint32_t _prio;						\
@@ -194,7 +194,7 @@ static int fixture_intercept_outgoing(struct fixture *f,
 									\
 	} while (0);
 
-#define CHECKLIST_START(ep)					\
+#define ep_checklist_start(ep)					\
 	err = trice_checklist_start((ep)->icem, NULL, 1, true,	\
 				   ice_estab_handler,		\
 				   ice_failed_handler, (ep));	\
@@ -347,7 +347,7 @@ static int fixture_init(struct fixture *f)
 }
 
 
-static int fixture_add_second(struct fixture *f)
+static int fixture_add_second_ep(struct fixture *f)
 {
 	const struct trice_conf conf = {
 		.debug        = DEBUG,
@@ -493,7 +493,7 @@ static int candidate_add_5_local(int proto)
 
 		sa_set_str(&addr, buf, 1000+i);
 
-		ADD_LOCAL_SRFLX_CANDIDATE(ep, proto, 0, &addr)
+		ep_add_local_srflx_candidate(ep, proto, 0, &addr)
 	}
 
 	TEST_EQUALS(5, list_count(trice_lcandl(ep->icem)));
@@ -523,7 +523,7 @@ static int candidate_find_local_candidate(void)
 	cand = trice_lcand_find(ep->icem, -1, 1, IPPROTO_UDP, &addr);
 	TEST_ASSERT(cand == NULL);
 
-	ADD_LOCAL_SRFLX_CANDIDATE(ep, IPPROTO_UDP, 0x7e0000ff, &addr);
+	ep_add_local_srflx_candidate(ep, IPPROTO_UDP, 0x7e0000ff, &addr);
 
 	cand = trice_lcand_find(ep->icem, -1, 1, IPPROTO_UDP, &addr);
 	TEST_ASSERT(cand != NULL);
@@ -556,7 +556,7 @@ static int test_candidate_add_5_remote_candidates(void)
 
 		sa_set_str(&addr, buf, 1234);
 
-		ADD_REMOTE_HOST_CANDIDATE(ep, &addr);
+		ep_add_remote_host_candidate(ep, &addr);
 	}
 
 	TEST_EQUALS(0, list_count(trice_lcandl(ep->icem)));
@@ -586,7 +586,7 @@ static int candidate_find_remote_candidate(void)
 	cand = trice_rcand_find(ep->icem, 1, IPPROTO_UDP, &addr);
 	TEST_ASSERT(cand == NULL);
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &addr);
+	ep_add_remote_host_candidate(ep, &addr);
 
 	cand = trice_rcand_find(ep->icem, 1, IPPROTO_UDP, &addr);
 	TEST_ASSERT(cand != NULL);
@@ -620,9 +620,9 @@ static int test_candidate_add_2_local_and_2_remote_candidates(void)
 		sa_set_port(&laddr, 10000+i);
 		sa_set_port(&raddr, 20000+i);
 
-		ADD_LOCAL_SRFLX_CANDIDATE(ep, IPPROTO_UDP, 1234, &laddr);
+		ep_add_local_srflx_candidate(ep, IPPROTO_UDP, 1234, &laddr);
 
-		ADD_REMOTE_HOST_CANDIDATE(ep, &raddr);
+		ep_add_remote_host_candidate(ep, &raddr);
 	}
 
 	TEST_EQUALS(2, list_count(trice_lcandl(ep->icem)));
@@ -654,12 +654,12 @@ static int test_candidate_2_local_duplicates(int proto,
 	TEST_EQUALS(0, list_count(trice_lcandl(ep->icem)));
 
 	/* add one with Low Priority */
-	ADD_LOCAL_SRFLX_CANDIDATE(ep, proto, prio1, &laddr);
+	ep_add_local_srflx_candidate(ep, proto, prio1, &laddr);
 
 	TEST_EQUALS(1, list_count(trice_lcandl(ep->icem)));
 
 	/* add one with High Priority */
-	ADD_LOCAL_SRFLX_CANDIDATE(ep, proto, prio2, &laddr);
+	ep_add_local_srflx_candidate(ep, proto, prio2, &laddr);
 
 	TEST_EQUALS(1, list_count(trice_lcandl(ep->icem)));
 
@@ -759,7 +759,7 @@ static int candidate_verify_redundant_with_public_ip(void)
 			      0, NULL, 0);
 	TEST_ERR(err);
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &raddr);
+	ep_add_remote_host_candidate(ep, &raddr);
 
 	TEST_EQUALS(1, list_count(trice_lcandl(ep->icem)));
 	TEST_EQUALS(1, list_count(trice_rcandl(ep->icem)));
@@ -790,9 +790,9 @@ static int candpair_add_1_local_and_1_remote_candidate_and_create_pair(void)
 
 	sa_set_str(&addr, "10.0.0.5", 1000);
 
-	ADD_LOCAL_SRFLX_CANDIDATE(ep, IPPROTO_UDP, 1234, &addr);
+	ep_add_local_srflx_candidate(ep, IPPROTO_UDP, 1234, &addr);
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &addr);
+	ep_add_remote_host_candidate(ep, &addr);
 
 	/* the checklist is formated automatically */
 
@@ -833,14 +833,14 @@ static int candpair_combine_ipv4_ipv6_udp_tcp(void)
 			       NULL, 0);
 	TEST_ERR(err);
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &addr);
+	ep_add_remote_host_candidate(ep, &addr);
 	err |= trice_rcand_add(NULL, ep->icem, 1,
 			       "FND", IPPROTO_TCP, 1234,
 			       &addr, ICE_CAND_TYPE_HOST,
 			       ICE_TCP_PASSIVE);
 	if (err) goto out;
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &addr6);
+	ep_add_remote_host_candidate(ep, &addr6);
 	err |= trice_rcand_add(NULL, ep->icem, 1,
 			       "FND", IPPROTO_TCP, 1234,
 			       &addr6, ICE_CAND_TYPE_HOST,
@@ -925,7 +925,7 @@ static int candpair_test_pruning(void)
 
 	prio = ice_cand_calc_prio(ICE_CAND_TYPE_SRFLX, 0, COMPID);
 
-	add_local_udp_candidate_use(ep, &f->laddr);
+	ep_add_local_udp_candidate_use(ep, &f->laddr);
 
 	lcand = trice_lcand_find(ep->icem, -1, COMPID,
 				 IPPROTO_UDP, NULL);
@@ -938,7 +938,7 @@ static int candpair_test_pruning(void)
 	TEST_ERR(err);
 	TEST_ASSERT(lcand != NULL);
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &remote_addr);
+	ep_add_remote_host_candidate(ep, &remote_addr);
 
 	/* verify that SRFLX candpair was pruned
 	 */
@@ -1070,7 +1070,7 @@ static int checklist_verify_states(void)
 	TEST_EQUALS(false, trice_checklist_isrunning(ep->icem));
 
 	/* Start -- Running */
-	CHECKLIST_START(ep);
+	ep_checklist_start(ep);
 	TEST_EQUALS(true, trice_checklist_isrunning(ep->icem));
 
 	/* Stop */
@@ -1108,14 +1108,14 @@ static int checklist_many_local_candidates_and_conncheck_all_working(void)
 		TEST_ERR(err);
 	}
 
-	ADD_REMOTE_HOST_CANDIDATE(ep, &f->remote->addr);
+	ep_add_remote_host_candidate(ep, &f->remote->addr);
 
 	err |= trice_rcand_add(0, ep->icem, 2, "FND", IPPROTO_UDP,
 			       1234, &f->remote->addr,
 			       ICE_CAND_TYPE_HOST, 0);
 	TEST_ERR(err);
 
-	CHECKLIST_START(ep);
+	ep_checklist_start(ep);
 
 	f->n_expected_estabh = 4;
 
@@ -1189,7 +1189,7 @@ static int checklist_many_local_candidates_and_conncheck_all_failing(void)
 			       0);
 	TEST_ERR(err);
 
-	CHECKLIST_START(ep);
+	ep_checklist_start(ep);
 
 	err = re_main_timeout(1000);
 	if (err)
@@ -1260,15 +1260,15 @@ static int checklist_tcp_simple(enum ice_tcptype tcptype)
 	ep  = &f->epv[0];
 	ep2 = &f->epv[1];
 
-	err = fixture_add_second(f);
+	err = fixture_add_second_ep(f);
 	TEST_ERR(err);
 
 	err |= trice_set_remote_ufrag(ep2->icem, f->lufrag);
 	err |= trice_set_remote_pwd(ep2->icem, f->lpwd);
 	TEST_ERR(err);
 
-	add_local_tcp_candidate_use(ep, &f->laddr, tcptype);
-	add_local_tcp_candidate_use(ep2, &f->laddr,
+	ep_add_local_tcp_candidate_use(ep, &f->laddr, tcptype);
+	ep_add_local_tcp_candidate_use(ep2, &f->laddr,
 				    ice_tcptype_reverse(tcptype));
 
 	err  = exchange_candidates(ep->icem, ep2->icem);
@@ -1277,8 +1277,8 @@ static int checklist_tcp_simple(enum ice_tcptype tcptype)
 
 	f->cancel_on_both = true;
 
-	CHECKLIST_START(ep);
-	CHECKLIST_START(ep2);
+	ep_checklist_start(ep);
+	ep_checklist_start(ep2);
 
 	err = re_main_timeout(1000);
 	if (err)
@@ -1378,7 +1378,7 @@ static void perm_handler(void *arg)
 	struct fixture *f = arg;
 	int err;
 
-	CHECKLIST_START(&f->epv[0]);
+	ep_checklist_start(&f->epv[0]);
 
  out:
 	if (err)
@@ -1483,7 +1483,7 @@ static int ice_turn_only(void)
 	 * Peer B
 	 */
 
-	err = fixture_add_second(f);
+	err = fixture_add_second_ep(f);
 	if (err)
 		goto out;
 
@@ -1562,7 +1562,7 @@ static int checklist_tcp_failure(void)
 	if (err)
 		goto out;
 
-	add_local_tcp_candidate_use(ep, &f->laddr, ICE_TCP_ACTIVE);
+	ep_add_local_tcp_candidate_use(ep, &f->laddr, ICE_TCP_ACTIVE);
 
 	err = trice_rcand_add(NULL, ep->icem, COMPID,
 			      "FND", IPPROTO_TCP, 1234,
@@ -1573,7 +1573,7 @@ static int checklist_tcp_failure(void)
 
 	TEST_EQUALS(1, list_count(trice_checkl(ep->icem)));
 
-	CHECKLIST_START(ep);
+	ep_checklist_start(ep);
 
 	err = re_main_timeout(500);
 	if (err)
@@ -1668,7 +1668,7 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 	ep  = &f->epv[0];
 	ep2 = &f->epv[1];
 
-	err = fixture_add_second(f);
+	err = fixture_add_second_ep(f);
 	TEST_ERR(err);
 
 #if 0
@@ -1684,7 +1684,7 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 
 	/* add local HOST candidates */
 
-	add_local_udp_candidate_use(ep, &f->laddr);
+	ep_add_local_udp_candidate_use(ep, &f->laddr);
 
 	lcand = trice_lcand_find2(ep->icem, ICE_CAND_TYPE_HOST, AF_INET);
 	TEST_ASSERT(lcand != NULL);
@@ -1718,7 +1718,7 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 
 	f->cancel_on_both = true;
 
-	CHECKLIST_START(ep);
+	ep_checklist_start(ep);
 
 	/* NOTE: slow checklist */
 	err = trice_checklist_start(ep2->icem, NULL, 10, true,

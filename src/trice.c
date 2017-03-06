@@ -322,7 +322,9 @@ static int fixture_init(struct fixture *f)
 	rand_str(f->rufrag, sizeof(f->rufrag));
 	rand_str(f->rpwd, sizeof(f->rpwd));
 
-	err = trice_alloc(&f->epv[0].icem, &conf, f->epv[0].controlling,
+	err = trice_alloc(&f->epv[0].icem, &conf,
+			  f->epv[0].controlling
+			    ? ICE_ROLE_CONTROLLING : ICE_ROLE_CONTROLLED,
 			  f->lufrag, f->lpwd);
 	if (err)
 		goto out;
@@ -335,7 +337,8 @@ static int fixture_init(struct fixture *f)
 
 	/* create a fake ICE endpoint (with l/r ufrag/pwd swapped) */
 	err = fake_remote_alloc(&f->remote, f->epv[0].icem,
-				!f->epv[0].controlling,
+				f->epv[1].controlling,
+
 				f->rufrag, f->rpwd,
 				f->lufrag, f->lpwd);
 	if (err)
@@ -363,7 +366,9 @@ static int fixture_add_second_ep(struct fixture *f)
 	TEST_ASSERT(f != NULL);
 	TEST_ASSERT(ep->icem == NULL);
 
-	err = trice_alloc(&ep->icem, &conf, ep->controlling,
+	err = trice_alloc(&ep->icem, &conf,
+			  ep->controlling
+			    ? ICE_ROLE_CONTROLLING : ICE_ROLE_CONTROLLED,
 			  f->rufrag, f->rpwd);
 	if (err)
 		goto out;
@@ -1609,9 +1614,13 @@ int test_trice_checklist(void)
 {
 	int err = 0;
 
-	err |= checklist_verify_states();
-	err |= checklist_many_local_candidates_and_conncheck_all_working();
-	err |= checklist_many_local_candidates_and_conncheck_all_failing();
+	err = checklist_verify_states();
+	TEST_ERR(err);
+	err = checklist_many_local_candidates_and_conncheck_all_working();
+	TEST_ERR(err);
+	err = checklist_many_local_candidates_and_conncheck_all_failing();
+	TEST_ERR(err);
+
 	if (err)
 		return err;
 
@@ -1621,6 +1630,7 @@ int test_trice_checklist(void)
 		return err;
 #endif
 
+ out:
 	return err;
 }
 

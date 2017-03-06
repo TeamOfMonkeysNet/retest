@@ -80,15 +80,16 @@
 		goto out;						\
 	}
 
-#define TEST_ERR(err)							\
-	if ((err)) {							\
-		if ((err) != ENOMEM) {					\
+#define TEST_ERR(r)							\
+	if ((r)) {							\
+		if ((r) != ENOMEM) {					\
 			(void)re_fprintf(stderr, "\n");			\
 			DEBUG_WARNING("TEST_ERR: %s:%u:"		\
 				      " (%m)\n",			\
 				      __FILE__, __LINE__,		\
-				      (err));				\
+				      (r));				\
 		}							\
+		err = (r);						\
 		goto out;						\
 	}
 

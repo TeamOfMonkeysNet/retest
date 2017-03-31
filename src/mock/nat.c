@@ -89,8 +89,6 @@ static bool nat_helper_send(int *err, struct sa *dst,
 		DEBUG_WARNING("nat: binding to %J not found\n", dst);
 		return true;
 	}
-
-	return false;
 }
 
 
@@ -208,11 +206,6 @@ int nat_alloc(struct nat **natp, enum natbox_type type,
 	}
 	if (err)
 		goto out;
-
-#if 0
-	re_printf("~~~ NAT/Firewall installed on UDP-socket %J\n",
-		  &nat->laddr);
-#endif
 
  out:
 	if (err)

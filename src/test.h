@@ -380,10 +380,8 @@ struct nat {
 	struct sa public_addr;
 	struct udp_helper *uh;
 	struct udp_sock *us;
-	struct sa laddr;
 	struct sa bindingv[16];
 	size_t bindingc;
-	unsigned n_drop;
 };
 
 int nat_alloc(struct nat **natp, enum natbox_type type,

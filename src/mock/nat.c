@@ -85,7 +85,6 @@ static bool nat_helper_send(int *err, struct sa *dst,
 		return false;
 	}
 	else {
-		++nat->n_drop;
 		*err = ENOTCONN;
 		DEBUG_WARNING("nat: binding to %J not found\n", dst);
 		return true;
@@ -142,8 +141,8 @@ static bool firewall_ingress(struct sa *src,
 
 	/* check if external address has a mapping */
 	if (!nat_binding_find_addr(nat, src)) {
-		++nat->n_drop;
-		re_printf("firewall: drop 1 packet from %J\n", src);
+
+		DEBUG_NOTICE("firewall: drop 1 packet from %J\n", src);
 		return true;
 	}
 
@@ -154,14 +153,6 @@ static bool firewall_ingress(struct sa *src,
 static void nat_destructor(void *arg)
 {
 	struct nat *nat = arg;
-
-#if 0
-	re_printf("nat: summary[%J]  "
-		  "bindingc=%u, n_drop=%u\n",
-		  &nat->laddr,
-		  nat->bindingc,
-		  nat->n_drop);
-#endif
 
 	mem_deref(nat->uh);
 	mem_deref(nat->us);
@@ -195,9 +186,6 @@ int nat_alloc(struct nat **natp, enum natbox_type type,
 	if (public_addr)
 		nat->public_addr = *public_addr;
 	nat->us = mem_ref(us);
-	err = udp_local_get(us, &nat->laddr);
-	if (err)
-		goto out;
 
 	switch (type) {
 
@@ -211,6 +199,11 @@ int nat_alloc(struct nat **natp, enum natbox_type type,
 		err = udp_register_helper(&nat->uh, us, LAYER_NAT,
 					  firewall_egress,
 					  firewall_ingress, nat);
+		break;
+
+	default:
+		DEBUG_WARNING("invalid NAT type %d\n", type);
+		err = ENOTSUP;
 		break;
 	}
 	if (err)

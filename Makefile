@@ -5,7 +5,7 @@
 #
 
 PROJECT	  := retest
-VERSION   := 0.5.0
+VERSION   := 0.5.1
 
 LIBRE_MK  := $(shell [ -f ../re/mk/re.mk ] && \
 	echo "../re/mk/re.mk")
@@ -43,11 +43,6 @@ CPPFLAGS += -I$(SYSROOT)/include
 
 
 BIN	:= $(PROJECT)$(BIN_SUFFIX)
-
-SPLINT_OPTIONS += -Isrc
-ifneq ($(LIBREM_PATH),)
-SPLINT_OPTIONS += -I$(LIBREM_PATH)/include
-endif
 
 ifneq ($(LIBREM_PATH),)
 LIBS	+= -L$(LIBREM_PATH)

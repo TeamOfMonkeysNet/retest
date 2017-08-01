@@ -195,7 +195,7 @@ static int fixture_intercept_outgoing(struct fixture *f,
 	} while (0);
 
 #define ep_checklist_start(ep)					\
-	err = trice_checklist_start((ep)->icem, NULL, 1, true,	\
+	err = trice_checklist_start((ep)->icem, NULL, 1,	\
 				   ice_estab_handler,		\
 				   ice_failed_handler, (ep));	\
 	TEST_ERR(err);						\
@@ -297,6 +297,7 @@ static void ice_failed_handler(int err, uint16_t scode,
 static int fixture_init(struct fixture *f)
 {
 	const struct trice_conf conf = {
+		.nom          = ICE_NOMINATION_AGGRESSIVE,
 		.debug        = DEBUG,
 		.trace        = TRACE,
 		.ansi         = true,
@@ -355,6 +356,7 @@ static int fixture_init(struct fixture *f)
 static int fixture_add_second_ep(struct fixture *f)
 {
 	const struct trice_conf conf = {
+		.nom          = ICE_NOMINATION_AGGRESSIVE,
 		.debug        = DEBUG,
 		.trace        = TRACE,
 		.ansi         = true,
@@ -1733,7 +1735,7 @@ static int checklist_udp_loop(bool fw_a, bool fw_b)
 	ep_checklist_start(ep);
 
 	/* NOTE: slow checklist */
-	err = trice_checklist_start(ep2->icem, NULL, 10, true,
+	err = trice_checklist_start(ep2->icem, NULL, 10,
 				    ice_estab_handler,
 				    ice_failed_handler, ep2);
 	TEST_ERR(err);

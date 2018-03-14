@@ -109,7 +109,9 @@
 
 /* Module API */
 int test_aes(void);
+int test_aes_gcm(void);
 int test_aubuf(void);
+int test_auresamp(void);
 int test_base64(void);
 int test_bfcp(void);
 int test_bfcp_bin(void);
@@ -119,6 +121,7 @@ int test_dns_hdr(void);
 int test_dns_rr(void);
 int test_dns_dname(void);
 int test_dsp(void);
+int test_dtmf(void);
 int test_fir(void);
 int test_fmt_human_time(void);
 int test_fmt_param(void);
@@ -140,6 +143,9 @@ int test_hmac_sha1(void);
 int test_hmac_sha256(void);
 int test_http(void);
 int test_http_loop(void);
+#ifdef USE_TLS
+int test_https_loop(void);
+#endif
 int test_httpauth_chall(void);
 int test_httpauth_resp(void);
 int test_ice_loop(void);
@@ -159,6 +165,7 @@ int test_mbuf(void);
 int test_md5(void);
 int test_mem(void);
 int test_mem_reallocarray(void);
+int test_mem_secure(void);
 int test_mqueue(void);
 int test_natbd(void);
 int test_odict(void);
@@ -196,6 +203,8 @@ int test_sipreg_tls(void);
 int test_sipsess(void);
 int test_srtp(void);
 int test_srtcp(void);
+int test_srtp_gcm(void);
+int test_srtcp_gcm(void);
 int test_stun_req(void);
 int test_stun_resp(void);
 int test_stun_reqltc(void);
@@ -228,7 +237,6 @@ int test_vidconv_pixel_formats(void);
 int test_websock(void);
 #ifdef USE_TLS
 int test_dtls(void);
-int test_dtls_1_2(void);
 int test_dtls_srtp(void);
 int test_tls(void);
 int test_tls_ec(void);
@@ -261,6 +269,8 @@ void test_hexdump_dual(FILE *f,
 int re_main_timeout(uint32_t timeout_ms);
 int test_load_file(struct mbuf *mb, const char *filename);
 int test_write_file(struct mbuf *mb, const char *filename);
+void test_set_datapath(const char *path);
+const char *test_datapath(void);
 
 
 /* util */

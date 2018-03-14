@@ -118,8 +118,11 @@ int test_http(void)
 
 
 struct test {
+	struct mbuf *mb_body;
+	size_t clen;
 	uint32_t n_request;
 	uint32_t n_response;
+	bool secure;
 	int err;
 };
 
@@ -135,9 +138,22 @@ static void http_req_handler(struct http_conn *conn,
 			     const struct http_msg *msg, void *arg)
 {
 	struct test *t = arg;
+	struct mbuf *mb_body = mbuf_alloc(1024);
 	int err = 0;
 
+	if (!mb_body) {
+		err = ENOMEM;
+		goto out;
+	}
+
 	++t->n_request;
+
+	if (t->secure) {
+		TEST_ASSERT(http_conn_tls(conn) != NULL);
+	}
+	else {
+		TEST_ASSERT(http_conn_tls(conn) == NULL);
+	}
 
 	/* verify HTTP request */
 	TEST_STRCMP("1.1", 3, msg->ver.p, msg->ver.l);
@@ -146,9 +162,40 @@ static void http_req_handler(struct http_conn *conn,
 	TEST_STRCMP("", 0, msg->prm.p, msg->prm.l);
 	TEST_EQUALS(0, msg->clen);
 
-	err = http_reply(conn, 200, "OK", NULL);
+	/* Create a chunked response body */
+	err = mbuf_write_str(mb_body,
+			     "2\r\n"
+			     "ab\r\n"
+
+			     "4\r\n"
+			     "cdef\r\n"
+
+			     "8\r\n"
+			     "ghijklmn\r\n"
+
+			     "c\r\n"
+			     "opqrstuvwxyz\r\n"
+
+			     "0\r\n"
+			     "\r\n"
+			     );
+	if (err)
+		goto out;
+
+	t->clen = mb_body->end;
+
+	err = http_reply(conn, 200, "OK",
+			 "Transfer-Encoding: chunked\r\n"
+			 "Content-Type: text/plain\r\n"
+			 "Content-Length: %zu\r\n"
+			 "\r\n"
+			 "%b",
+			 mb_body->end,
+			 mb_body->buf, mb_body->end
+			 );
 
  out:
+	mem_deref(mb_body);
 	if (err)
 		abort_test(t, err);
 }
@@ -157,12 +204,18 @@ static void http_req_handler(struct http_conn *conn,
 static void http_resp_handler(int err, const struct http_msg *msg, void *arg)
 {
 	struct test *t = arg;
+	bool chunked;
 
 	if (err) {
 		/* translate error code */
 		err = ENOMEM;
 		goto out;
 	}
+
+#if 0
+	re_printf("%H\n", http_msg_print, msg);
+	re_printf("BODY: %b\n", msg->mb->buf, msg->mb->end);
+#endif
 
 	++t->n_response;
 
@@ -173,7 +226,14 @@ static void http_resp_handler(int err, const struct http_msg *msg, void *arg)
 	TEST_STRCMP("", 0, msg->prm.p, msg->prm.l);
 	TEST_EQUALS(200, msg->scode);
 	TEST_STRCMP("OK", 2, msg->reason.p, msg->reason.l);
-	TEST_EQUALS(0, msg->clen);
+	TEST_EQUALS(t->clen, msg->clen);
+
+	chunked = http_msg_hdr_has_value(msg, HTTP_HDR_TRANSFER_ENCODING,
+					 "chunked");
+	TEST_ASSERT(chunked);
+
+	TEST_STRCMP("text", 4, msg->ctyp.type.p, msg->ctyp.type.l);
+	TEST_STRCMP("plain", 5, msg->ctyp.subtype.p, msg->ctyp.subtype.l);
 
 	re_cancel();
 
@@ -183,7 +243,24 @@ static void http_resp_handler(int err, const struct http_msg *msg, void *arg)
 }
 
 
-int test_http_loop(void)
+static int http_data_handler(const uint8_t *buf, size_t size,
+			     const struct http_msg *msg, void *arg)
+{
+	struct test *t = arg;
+	(void)msg;
+
+	if (!t->mb_body) {
+
+		t->mb_body = mbuf_alloc(256);
+		if (!t->mb_body)
+			return ENOMEM;
+	}
+
+	return mbuf_write_mem(t->mb_body, buf, size);
+}
+
+
+static int test_http_loop_base(bool secure)
 {
 	struct http_sock *sock = NULL;
 	struct http_cli *cli = NULL;
@@ -196,12 +273,25 @@ int test_http_loop(void)
 
 	memset(&t, 0, sizeof(t));
 
+	t.secure = secure;
+
 	err |= sa_set_str(&srv, "127.0.0.1", 0);
 	err |= sa_set_str(&dns, "127.0.0.1", 53);    /* note: unused */
 	if (err)
 		goto out;
 
-	err = http_listen(&sock, &srv, http_req_handler, &t);
+	if (secure) {
+		char path[256];
+
+		re_snprintf(path, sizeof(path), "%s/server-ecdsa.pem",
+			    test_datapath());
+
+		err = https_listen(&sock, &srv, path,
+				   http_req_handler, &t);
+	}
+	else {
+		err = http_listen(&sock, &srv, http_req_handler, &t);
+	}
 	if (err)
 		goto out;
 
@@ -218,14 +308,15 @@ int test_http_loop(void)
 		goto out;
 
 	(void)re_snprintf(url, sizeof(url),
-			  "http://127.0.0.1:%u/index.html", sa_port(&srv));
+			  "http%s://127.0.0.1:%u/index.html",
+			  secure ? "s" : "", sa_port(&srv));
 	err = http_request(&req, cli, "GET", url,
-			   http_resp_handler, NULL, &t,
+			   http_resp_handler, http_data_handler, &t,
 			   NULL);
 	if (err)
 		goto out;
 
-	err = re_main_timeout(500);
+	err = re_main_timeout(secure ? 1800 : 900);
 	if (err)
 		goto out;
 
@@ -238,7 +329,11 @@ int test_http_loop(void)
 	TEST_EQUALS(1, t.n_request);
 	TEST_EQUALS(1, t.n_response);
 
+	TEST_STRCMP("abcdefghijklmnopqrstuvwxyz", 26,
+		    t.mb_body->buf, t.mb_body->end);
+
  out:
+	mem_deref(t.mb_body);
 	mem_deref(req);
 	mem_deref(cli);
 	mem_deref(dnsc);
@@ -246,3 +341,17 @@ int test_http_loop(void)
 
 	return err;
 }
+
+
+int test_http_loop(void)
+{
+	return test_http_loop_base(false);
+}
+
+
+#ifdef USE_TLS
+int test_https_loop(void)
+{
+	return test_http_loop_base(true);
+}
+#endif

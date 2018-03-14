@@ -38,7 +38,9 @@ struct test {
 
 static const struct test tests[] = {
 	TEST(test_aes),
+	TEST(test_aes_gcm),
 	TEST(test_aubuf),
+	TEST(test_auresamp),
 	TEST(test_base64),
 	TEST(test_bfcp),
 	TEST(test_bfcp_bin),
@@ -50,9 +52,9 @@ static const struct test tests[] = {
 	TEST(test_dsp),
 #ifdef USE_TLS
 	TEST(test_dtls),
-	/*TEST(test_dtls_1_2),*/
 	TEST(test_dtls_srtp),
 #endif
+	TEST(test_dtmf),
 	TEST(test_fir),
 	TEST(test_fmt_human_time),
 	TEST(test_fmt_param),
@@ -74,6 +76,9 @@ static const struct test tests[] = {
 	TEST(test_hmac_sha256),
 	TEST(test_http),
 	TEST(test_http_loop),
+#ifdef USE_TLS
+	TEST(test_https_loop),
+#endif
 	TEST(test_httpauth_chall),
 	TEST(test_httpauth_resp),
 	TEST(test_ice_cand),
@@ -93,6 +98,7 @@ static const struct test tests[] = {
 	TEST(test_md5),
 	TEST(test_mem),
 	TEST(test_mem_reallocarray),
+	TEST(test_mem_secure),
 	TEST(test_mqueue),
 	TEST(test_natbd),
 	TEST(test_odict),
@@ -129,6 +135,8 @@ static const struct test tests[] = {
 	TEST(test_sipsess),
 	TEST(test_srtp),
 	TEST(test_srtcp),
+	TEST(test_srtp_gcm),
+	TEST(test_srtcp_gcm),
 	TEST(test_stun_req),
 	TEST(test_stun_resp),
 	TEST(test_stun_reqltc),
@@ -171,6 +179,13 @@ static const struct test tests[] = {
 	TEST(test_dtls_turn),
 #endif
 };
+
+
+#ifdef DATA_PATH
+static char datapath[256] = DATA_PATH;
+#else
+static char datapath[256] = "./data";
+#endif
 
 
 static const struct test *find_test(const char *name)
@@ -231,6 +246,10 @@ static int testcase_oom(const struct test *test, int levels, bool verbose)
 			/* test timed out, stop now */
 			err = 0;
 			goto out;
+		}
+		else if (err == ENOSYS) {
+			err = 0;
+			break;
 		}
 		else if (err == ESKIPPED) {
 			err = 0;
@@ -293,6 +312,7 @@ int test_oom(const char *name, bool verbose)
 
 static int test_unit(const char *name, bool verbose)
 {
+	size_t skipv[ARRAY_SIZE(tests)] = {0};
 	size_t i;
 	int err = 0;
 
@@ -321,7 +341,10 @@ static int test_unit(const char *name, bool verbose)
 
 			err = tests[i].exec();
 			if (err) {
-				if (err == ESKIPPED) {
+				if (err == ESKIPPED || err == ENOSYS) {
+
+					skipv[n_skipped] = i;
+
 					++n_skipped;
 					err = 0;
 					continue;
@@ -333,8 +356,16 @@ static int test_unit(const char *name, bool verbose)
 			}
 		}
 
-		if (n_skipped)
+		if (n_skipped) {
 			re_fprintf(stderr, "skipped:%u\n", n_skipped);
+
+			/* show any skipped testcase */
+			for (i=0; i<n_skipped; i++) {
+				size_t ix = skipv[i];
+				re_fprintf(stderr, "skip %s\n",
+					   tests[ix].name );
+			}
+		}
 	}
 
 	return err;
@@ -482,7 +513,7 @@ int test_perf(const char *name, bool verbose)
 			err = testcase_perf(&tests[i],
 					    &usec_avg);
 			if (err) {
-				if (err == ESKIPPED) {
+				if (err == ESKIPPED || err == ENOSYS) {
 					re_printf("skipped: %s\n",
 						  tests[i].name);
 					tim->test = NULL;
@@ -809,4 +840,16 @@ int test_write_file(struct mbuf *mb, const char *filename)
 	(void)close(fd);
 
 	return err;
+}
+
+
+void test_set_datapath(const char *path)
+{
+	str_ncpy(datapath, path, sizeof(datapath));
+}
+
+
+const char *test_datapath(void)
+{
+	return datapath;
 }

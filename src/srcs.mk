@@ -6,12 +6,14 @@
 
 SRCS	+= aes.c
 SRCS	+= aubuf.c
+SRCS	+= auresamp.c
 SRCS	+= base64.c
 SRCS	+= bfcp.c
 SRCS	+= conf.c
 SRCS	+= crc32.c
 SRCS	+= dns.c
 SRCS	+= dsp.c
+SRCS	+= dtmf.c
 SRCS	+= fir.c
 SRCS	+= fmt.c
 SRCS	+= g711.c

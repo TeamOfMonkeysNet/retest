@@ -429,13 +429,18 @@ static int test_json_exponent(void)
 {
 	static const char *str =
 		"{"
-		"  \"exponent1\"  :  9E18,"
-		"  \"exponent2\"  : -9E18,"
-		"  \"exponent3\"  : 0E99999,"
+		"  \"exponents\" : [1e2, 1e-2, 9E18, -9E18]"
 		"}";
-
 	struct odict *dict = NULL;
-	const struct odict_entry *e;
+	const struct odict_entry *arr, *e;
+	static const double values[] = {
+		100.0,
+		0.01,
+		9000000000000000000.0,
+		-9000000000000000000.0,
+	};
+	struct le *le;
+	unsigned i;
 	int err;
 
 	err = json_decode_odict(&dict, DICT_BSIZE,
@@ -443,22 +448,18 @@ static int test_json_exponent(void)
 	if (err)
 		goto out;
 
-	/* Verify signed 64-bit types */
+	arr = odict_lookup(dict, "exponents");
 
-	e = odict_lookup(dict, "exponent1");
-	TEST_ASSERT(e != NULL);
-	TEST_EQUALS(ODICT_INT, e->type);
-	TEST_EQUALS( 9000000000000000000LL, e->u.integer );
+	TEST_EQUALS(ARRAY_SIZE(values), odict_count(arr->u.odict, false));
 
-	e = odict_lookup(dict, "exponent2");
-	TEST_ASSERT(e != NULL);
-	TEST_EQUALS(ODICT_INT, e->type);
-	TEST_EQUALS( -9000000000000000000LL, e->u.integer );
+	for (le = list_head(&arr->u.odict->lst), i=0; le; le = le->next, ++i) {
 
-	e = odict_lookup(dict, "exponent3");
-	TEST_ASSERT(e != NULL);
-	TEST_EQUALS(ODICT_INT, e->type);
-	TEST_EQUALS( 0LL, e->u.integer );
+		e = le->data;
+
+		TEST_ASSERT(e != NULL);
+		TEST_EQUALS(ODICT_DOUBLE, e->type);
+		TEST_EQUALS( values[i], e->u.dbl );
+	}
 
  out:
 	mem_deref(dict);
@@ -621,6 +622,7 @@ static int test_json_file_parse(const char *filename)
 {
 	struct mbuf *mb_ref = NULL, *mb_enc = NULL;
 	struct odict *dict = NULL, *dict2 = NULL;
+	char path[256];
 	unsigned max_levels = 480;
 	int err;
 
@@ -631,7 +633,9 @@ static int test_json_file_parse(const char *filename)
 		goto out;
 	}
 
-	err = test_load_file(mb_ref, filename);
+	re_snprintf(path, sizeof(path), "%s/%s", test_datapath(), filename);
+
+	err = test_load_file(mb_ref, path);
 	if (err)
 		goto out;
 
@@ -675,14 +679,14 @@ static int test_json_file_parse(const char *filename)
 int test_json_file(void)
 {
 	const char *files[] = {
-		"data/rfc7159.json",
-		"data/fstab.json",
-		"data/widget.json",
-		"data/webapp.json",
-		"data/menu.json",
+		"rfc7159.json",
+		"fstab.json",
+		"widget.json",
+		"webapp.json",
+		"menu.json",
 #if 0
-		"data/citm_catalog.json",
-		"data/sample.json",        /* unicode */
+		"citm_catalog.json",
+		"sample.json",        /* unicode */
 #endif
 	};
 	unsigned i;

@@ -15,6 +15,9 @@
 #endif
 #include <re.h>
 #include "test.h"
+#ifdef USE_OPENSSL
+#include <openssl/crypto.h>
+#endif
 
 
 #define DEBUG_MODULE "retest"
@@ -192,6 +195,10 @@ int main(int argc, char *argv[])
 
 	DEBUG_NOTICE("libre version %s (%s/%s)\n", sys_libre_version_get(),
 		     sys_arch_get(), sys_os_get());
+#ifdef USE_OPENSSL
+	DEBUG_NOTICE(" OpenSSL:  %s\n",
+			  SSLeay_version(SSLEAY_VERSION));
+#endif
 
 	dbg_handler_set(NULL, 0);
 

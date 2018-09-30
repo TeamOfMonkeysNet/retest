@@ -231,7 +231,6 @@ int test_websock(void);
 int test_dtls(void);
 int test_dtls_srtp(void);
 int test_tls(void);
-int test_tls_ec(void);
 int test_tls_selfsigned(void);
 int test_tls_certificate(void);
 #endif
@@ -242,7 +241,6 @@ int test_dtls_turn(void);
 
 
 #ifdef USE_TLS
-extern const char test_certificate_rsa[];
 extern const char test_certificate_ecdsa[];
 #endif
 

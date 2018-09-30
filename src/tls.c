@@ -26,6 +26,7 @@ struct tls_test {
 	size_t recv_cli;
 	size_t recv_srv;
 	int err;
+	int verify_err;
 };
 
 
@@ -76,11 +77,7 @@ static void client_estab_handler(void *arg)
 	const char *cipher = tls_cipher_name(tt->sc_cli);
 	int err = 0;
 
-	if (tt->keytype == TLS_KEYTYPE_RSA) {
-
-		TEST_ASSERT(NULL == strstr(cipher, "ECDSA"));
-	}
-	else if (tt->keytype == TLS_KEYTYPE_EC) {
+	if (tt->keytype == TLS_KEYTYPE_EC) {
 
 		if (NULL == strstr(cipher, "ECDH")) {
 			DEBUG_WARNING("no ECDH in cipher (%s)\n", cipher);
@@ -88,6 +85,14 @@ static void client_estab_handler(void *arg)
 			goto out;
 		}
 	}
+
+	/* Client: Verify the server certificate.
+	 *         See note about tls_add_ca()
+	 */
+	tt->verify_err = tls_peer_verify(tt->sc_cli);
+
+	re_printf("    cipher:  %s\n", cipher);
+	re_printf("    verify:  %d\n", tt->verify_err);
 
 	tt->estab_cli = true;
 	can_send(tt);
@@ -198,6 +203,7 @@ static int test_tls_base(enum tls_keytype keytype)
 	memset(&tt, 0, sizeof(tt));
 
 	tt.keytype = keytype;
+	tt.verify_err = -1;
 
 	err = sa_set_str(&srv, "127.0.0.1", 0);
 	if (err)
@@ -208,13 +214,6 @@ static int test_tls_base(enum tls_keytype keytype)
 		goto out;
 
 	switch (keytype) {
-
-	case TLS_KEYTYPE_RSA:
-		err = tls_set_certificate(tt.tls, test_certificate_rsa,
-					  strlen(test_certificate_rsa));
-		if (err)
-			goto out;
-		break;
 
 	case TLS_KEYTYPE_EC:
 		err = tls_set_certificate(tt.tls, test_certificate_ecdsa,
@@ -227,6 +226,16 @@ static int test_tls_base(enum tls_keytype keytype)
 		err = EINVAL;
 		goto out;
 	}
+
+#if 1
+	/* NOTE: set the CA certificate to self-signed certificate.
+	 *
+	 *       this is needed for tls_peer_verify to succeed.
+	 *
+	 */
+	err = tls_add_ca(tt.tls, "./data/server-ecdsa.pem");
+	TEST_ERR(err);
+#endif
 
 	err = tcp_listen(&tt.ts, &srv, server_conn_handler, &tt);
 	if (err)
@@ -259,6 +268,8 @@ static int test_tls_base(enum tls_keytype keytype)
 	TEST_EQUALS(1, tt.recv_cli);
 	TEST_EQUALS(1, tt.recv_srv);
 
+	TEST_EQUALS(0, tt.verify_err);
+
  out:
 	/* NOTE: close context first */
 	mem_deref(tt.tls);
@@ -274,12 +285,6 @@ static int test_tls_base(enum tls_keytype keytype)
 
 
 int test_tls(void)
-{
-	return test_tls_base(TLS_KEYTYPE_RSA);
-}
-
-
-int test_tls_ec(void)
 {
 	return test_tls_base(TLS_KEYTYPE_EC);
 }
@@ -313,8 +318,8 @@ int test_tls_certificate(void)
 {
 	struct tls *tls = NULL;
 	static const uint8_t test_fingerprint[20] =
-		"\xD4\x86\x12\xB4\x28\x27\x5A\x74\x07\xCA"
-		"\x09\x51\xA3\x1A\x79\x2A\x7E\x3C\xC3\x21";
+		"\xA5\xE3\x0A\x1E\xC1\xD4\x2B\xCB\xCF\x04"
+		"\xE7\x7A\x0F\x61\x74\x81\x66\xF9\x66\x7E";
 	uint8_t fp[20];
 	int err;
 
@@ -322,8 +327,8 @@ int test_tls_certificate(void)
 	if (err)
 		goto out;
 
-	err = tls_set_certificate(tls, test_certificate_rsa,
-				  strlen(test_certificate_rsa));
+	err = tls_set_certificate(tls, test_certificate_ecdsa,
+				  strlen(test_certificate_ecdsa));
 	TEST_EQUALS(0, err);
 
 	/* verify fingerprint of the certificate */
